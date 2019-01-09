@@ -1,8 +1,6 @@
-from html.parser import HTMLParser
 from bs4 import BeautifulSoup
 import requests
 import pefile
-import codecs
 import os
 
 browser_path = r'chrome'
@@ -12,6 +10,7 @@ isolate_string1 = r'Download CCleaner '
 isolate_string2 = r' for PC Windows - FileHippo.com'
 isolate_dstring1 = r'        <a class="program-header-download-link green button-link active long download-button"'
 isolate_dstring2 = r"""            onclick="_gaq.push(['_trackEvent', 'Download', 'Download, DM Disabled', 'ccleaner']);"""
+
 
 def get_latest():
     version = 'Error'
@@ -27,7 +26,7 @@ def get_latest():
     for line in response.split("\n"):
         if isolate_dstring2 in line:
             record = False
-        if record == True:
+        if record:
             download = line.replace('            href="', '').replace('"', '')
         if isolate_dstring1 in line:
             record = True
@@ -41,19 +40,19 @@ def get_installed():
     version = version.replace(' ', '').replace(',', '.')
     return version
 
-print ("Please wait, fetching versions..")
 
+print("Please wait, fetching versions..")
 installed = get_installed()
 os.system('cls')
-print ("Installed version: %s" % installed)
+print("Installed version: %s" % installed)
 data = get_latest()
 latest = data[0]
 download = data[1]
-print ("Latest version:    %s" % latest)
+print("Latest version:    %s" % latest)
 
 if installed != latest:
-    print("Update available. Press any key to open the download page or just close this window to exit.")
+    print("Update available. Press any key to open the download page..")
     input("The url that will be opened is: %s" % download)
-    os.system("%s %s" % (browser, download))
+    os.system("%s %s" % (browser_path, download))
 else:
     print("Your version is up to date.")
