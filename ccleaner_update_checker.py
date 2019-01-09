@@ -1,45 +1,59 @@
-from selenium import webdriver
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.select import Select
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
+from html.parser import HTMLParser
+from bs4 import BeautifulSoup
+import requests
 import pefile
+import codecs
+import os
 
-def check_update(version):
-    url = 'http://www.piriform.com/ccleaner/update?v=' + version
-    isolate = "    piriform.constants.productUpdate.version = '"
-    driver = webdriver.PhantomJS()
-    driver.get(url)
-    wait = WebDriverWait(driver, 7)
-    print ("Getting latest version..")
-    try:
-        wait.until(EC.visibility_of_element_located((By.CLASS_NAME, 'page-foot ')))
-    except:
-        print ("Couldn't get latest version.")
-        return False
-    data = driver.page_source
-    open('ccleaner_update_checker.dat', 'w').write(data)
-    data = open('ccleaner_update_checker.dat', 'r').readlines()
-    for latest_v in data:
-        if isolate in latest_v:
-            latest_v = latest_v.replace(isolate, '')
-            latest_v = latest_v.replace("';", '')
-            break
-    driver.quit
-    return latest_v
+browser_path = r'chrome'
+ccleaner_path = r'C:\Program Files\CCleaner\CCleaner64.exe'
+ccleaner_url = r'https://filehippo.com/de/download_ccleaner'
+isolate_string1 = r'Download CCleaner '
+isolate_string2 = r' for PC Windows - FileHippo.com'
+isolate_dstring1 = r'        <a class="program-header-download-link green button-link active long download-button"'
+isolate_dstring2 = r"""            onclick="_gaq.push(['_trackEvent', 'Download', 'Download, DM Disabled', 'ccleaner']);"""
 
-def get_current():
-    print ("Getting current version..")
-    pe = pefile.PE(r'C:\Program Files\CCleaner\CCleaner64.exe')
-    current_v = pe.FileInfo[0].StringTable[0].entries[b'FileVersion']
-    current_v = current_v.decode('utf-8')
-    current_v = current_v.replace(' ', '').replace(',', '.')
-    return current_v
+def get_latest():
+    version = 'Error'
+    download = 'Error'
+    record = False
+    session = requests.session()
+    response = session.get(ccleaner_url).text
+    soup = BeautifulSoup(response, "html.parser")
+    content = soup.get_text("\n").split("\n")
+    for line in content:
+        if isolate_string1 in line and isolate_string2 in line:
+            version = line.replace(isolate_string1, '').replace(isolate_string2, '')
+    for line in response.split("\n"):
+        if isolate_dstring2 in line:
+            record = False
+        if record == True:
+            download = line.replace('            href="', '').replace('"', '')
+        if isolate_dstring1 in line:
+            record = True
+    return [version, download]
 
-current_v = get_current()
-print ("Current version: %s" % current_v)
-latest_v = check_update(current_v)
-if latest_v != current_v and latest_v != False:
-    print ("Update available: %s -> %s" % (current_v, latest_v))
-elif latest_v == current_v:
-    print ("You have the latest update: %s" % latest_v)
+
+def get_installed():
+    pe = pefile.PE(ccleaner_path)
+    version = pe.FileInfo[0].StringTable[0].entries[b'FileVersion']
+    version = version.decode('utf-8')
+    version = version.replace(' ', '').replace(',', '.')
+    return version
+
+print ("Please wait, fetching versions..")
+
+installed = get_installed()
+os.system('cls')
+print ("Installed version: %s" % installed)
+data = get_latest()
+latest = data[0]
+download = data[1]
+print ("Latest version:    %s" % latest)
+
+if installed != latest:
+    print("Update available. Press any key to open the download page or just close this window to exit.")
+    input("The url that will be opened is: %s" % download)
+    os.system("%s %s" % (browser, download))
+else:
+    print("Your version is up to date.")
